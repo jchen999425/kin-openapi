@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/getkin/kin-openapi/jsoninfo"
+	"github.com/jchen999425/kin-openapi/jsoninfo"
 )
 
 // Info is specified by OpenAPI/Swagger standard version 3.

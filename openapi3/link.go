@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-openapi/jsonpointer"
 
-	"github.com/getkin/kin-openapi/jsoninfo"
+	"github.com/jchen999425/kin-openapi/jsoninfo"
 )
 
 type Links map[string]*LinkRef

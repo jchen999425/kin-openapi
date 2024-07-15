@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/getkin/kin-openapi/jsoninfo"
+	"github.com/jchen999425/kin-openapi/jsoninfo"
 )
 
 func ExampleExtensionProps_DecodeWith() {

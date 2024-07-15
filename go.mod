@@ -3,7 +3,6 @@ module github.com/jchen999425/kin-openapi
 go 1.16
 
 require (
-	github.com/getkin/kin-openapi v0.110.0
 	github.com/go-openapi/jsonpointer v0.19.5
 	github.com/gorilla/mux v1.8.0
 	github.com/invopop/yaml v0.1.0
