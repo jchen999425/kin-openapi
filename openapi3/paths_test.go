@@ -80,9 +80,7 @@ paths:
 	for i := range tests {
 		tt := tests[i]
 		t.Run(tt.name, func(t *testing.T) {
-			loader := NewLoader()
-
-			doc, err := loader.LoadFromData([]byte(tt.spec[1:]))
+			doc, err := NewLoader().LoadFromData([]byte(tt.spec))
 			require.NoError(t, err)
 
 			err = doc.Paths.Validate(context.Background())
@@ -90,7 +88,7 @@ paths:
 				require.NoError(t, err)
 				return
 			}
-			require.EqualError(t, err, tt.wantErr)
+			require.Equal(t, tt.wantErr, err.Error())
 		})
 	}
 }

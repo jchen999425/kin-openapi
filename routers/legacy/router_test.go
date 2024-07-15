@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/routers"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/routers"
 )
 
 func TestRouter(t *testing.T) {
@@ -31,8 +31,8 @@ func TestRouter(t *testing.T) {
 			Title:   "MyAPI",
 			Version: "0.1",
 		},
-		Paths: openapi3.NewPaths(
-			openapi3.WithPath("/hello", &openapi3.PathItem{
+		Paths: openapi3.Paths{
+			"/hello": &openapi3.PathItem{
 				Connect: helloCONNECT,
 				Delete:  helloDELETE,
 				Get:     helloGET,
@@ -42,34 +42,34 @@ func TestRouter(t *testing.T) {
 				Post:    helloPOST,
 				Put:     helloPUT,
 				Trace:   helloTRACE,
-			}),
-			openapi3.WithPath("/onlyGET", &openapi3.PathItem{
+			},
+			"/onlyGET": &openapi3.PathItem{
 				Get: helloGET,
-			}),
-			openapi3.WithPath("/params/{x}/{y}/{z.*}", &openapi3.PathItem{
+			},
+			"/params/{x}/{y}/{z.*}": &openapi3.PathItem{
 				Get: paramsGET,
 				Parameters: openapi3.Parameters{
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("x").WithSchema(openapi3.NewStringSchema())},
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("y").WithSchema(openapi3.NewFloat64Schema())},
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("z").WithSchema(openapi3.NewIntegerSchema())},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("x")},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("y")},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("z")},
 				},
-			}),
-			openapi3.WithPath("/books/{bookid}", &openapi3.PathItem{
+			},
+			"/books/{bookid}": &openapi3.PathItem{
 				Get: paramsGET,
 				Parameters: openapi3.Parameters{
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("bookid").WithSchema(openapi3.NewStringSchema())},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("bookid")},
 				},
-			}),
-			openapi3.WithPath("/books/{bookid2}.json", &openapi3.PathItem{
+			},
+			"/books/{bookid2}.json": &openapi3.PathItem{
 				Post: booksPOST,
 				Parameters: openapi3.Parameters{
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("bookid2").WithSchema(openapi3.NewStringSchema())},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("bookid2")},
 				},
-			}),
-			openapi3.WithPath("/partial", &openapi3.PathItem{
+			},
+			"/partial": &openapi3.PathItem{
 				Get: partialGET,
-			}),
-		),
+			},
+		},
 	}
 
 	expect := func(r routers.Router, method string, uri string, operation *openapi3.Operation, params map[string]string) {
@@ -78,7 +78,7 @@ func TestRouter(t *testing.T) {
 		route, pathParams, err := r.FindRoute(req)
 		if err != nil {
 			if operation == nil {
-				pathItem := doc.Paths.Value(uri)
+				pathItem := doc.Paths[uri]
 				if pathItem == nil {
 					if err.Error() != routers.ErrPathNotFound.Error() {
 						t.Fatalf("'%s %s': should have returned %q, but it returned an error: %v", method, uri, routers.ErrPathNotFound, err)
@@ -195,15 +195,15 @@ func TestRouter(t *testing.T) {
 	}
 
 	schema := &openapi3.Schema{
-		Type:    &openapi3.Types{"string"},
+		Type:    "string",
 		Example: 3,
 	}
 	content := openapi3.NewContentWithJSONSchema(schema)
 	responses := openapi3.NewResponses()
-	responses.Value("default").Value.Content = content
-	doc.Paths.Set("/withExamples", &openapi3.PathItem{
+	responses["default"].Value.Content = content
+	doc.Paths["/withExamples"] = &openapi3.PathItem{
 		Get: &openapi3.Operation{Responses: responses},
-	})
+	}
 	err = doc.Validate(context.Background())
 	require.Error(t, err)
 	r, err = NewRouter(doc)

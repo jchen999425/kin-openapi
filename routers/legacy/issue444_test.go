@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	legacyrouter "github.com/getkin/kin-openapi/routers/legacy"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/openapi3filter"
+	legacyrouter "github.com/jchen999425/kin-openapi/routers/legacy"
 )
 
 func TestIssue444(t *testing.T) {

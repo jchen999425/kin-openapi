@@ -2,15 +2,15 @@ package openapi3filter
 
 import (
 	"encoding/json"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/routers/gorillamux"
 )
 
 func TestIssue639(t *testing.T) {
@@ -37,7 +37,7 @@ func TestIssue639(t *testing.T) {
               type: object
         responses:
           '200':
-           description: Successful response
+           description: Successful respons
 `[1:]
 
 	doc, err := loader.LoadFromData([]byte(spec))
@@ -52,7 +52,7 @@ func TestIssue639(t *testing.T) {
 	tests := []struct {
 		name               string
 		options            *Options
-		expectedDefaultVal any
+		expectedDefaultVal interface{}
 	}{
 		{
 			name: "no defaults are added to requests",
@@ -87,10 +87,10 @@ func TestIssue639(t *testing.T) {
 			}
 			err = ValidateRequest(ctx, requestValidationInput)
 			require.NoError(t, err)
-			bodyAfterValidation, err := io.ReadAll(httpReq.Body)
+			bodyAfterValidation, err := ioutil.ReadAll(httpReq.Body)
 			require.NoError(t, err)
 
-			raw := map[string]any{}
+			raw := map[string]interface{}{}
 			err = json.Unmarshal(bodyAfterValidation, &raw)
 			require.NoError(t, err)
 			require.Equal(t, testcase.expectedDefaultVal,

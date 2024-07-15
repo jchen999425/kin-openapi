@@ -9,15 +9,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/routers/gorillamux"
 )
 
 func TestIssue201(t *testing.T) {
 	loader := openapi3.NewLoader()
 	ctx := loader.Context
 	spec := `
-openapi: '3.0.3'
+openapi: '3'
 info:
   version: 1.0.0
   title: Sample API
@@ -37,24 +37,20 @@ paths:
               description: ''
               required: true
               schema:
-                type: string
                 pattern: '^blip$'
             x-blop:
               description: ''
               schema:
-                type: string
                 pattern: '^blop$'
             X-Blap:
               description: ''
               required: true
               schema:
-                type: string
                 pattern: '^blap$'
             X-Blup:
               description: ''
               required: true
               schema:
-                type: string
                 pattern: '^blup$'
 `[1:]
 
@@ -98,7 +94,7 @@ paths:
 		},
 
 		"invalid required header": {
-			err: `response header "X-Blup" doesn't match schema: string doesn't match the regular expression "^blup$"`,
+			err: `response header "X-Blup" doesn't match the schema: string "bluuuuuup" doesn't match the regular expression "^blup$"`,
 			headers: map[string]string{
 				"X-Blip": "blip",
 				"x-blop": "blop",

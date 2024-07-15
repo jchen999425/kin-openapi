@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/getkin/kin-openapi/routers/legacy"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/openapi3filter"
+	"github.com/jchen999425/kin-openapi/routers/legacy"
 )
 
 const spec = `
@@ -78,7 +78,7 @@ func Example() {
 		panic(err)
 	}
 
-	p, err := json.Marshal(map[string]any{
+	p, err := json.Marshal(map[string]interface{}{
 		"pet_type": "Cat",
 		"breed":    "Dingo",
 		"bark":     true,
@@ -107,6 +107,6 @@ func Example() {
 		fmt.Println(err)
 	}
 	// Output:
-	// request body has an error: doesn't match schema: input matches more than one oneOf schemas
+	// request body has an error: doesn't match the schema: input matches more than one oneOf schemas
 
 }

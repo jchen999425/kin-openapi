@@ -8,8 +8,7 @@ import (
 )
 
 func TestEmptyResponsesAreInvalid(t *testing.T) {
-	spec := []byte(`
-{
+	spec := `{
     "openapi": "3.0.0",
     "servers": [
         {
@@ -452,14 +451,11 @@ func TestEmptyResponsesAreInvalid(t *testing.T) {
     },
     "security": []
 }
-`[1:])
+`
 
-	loader := NewLoader()
-	doc, err := loader.LoadFromData(spec)
+	doc, err := NewLoader().LoadFromData([]byte(spec))
 	require.NoError(t, err)
-
 	require.Equal(t, doc.ExternalDocs.Description, "See AsyncAPI example")
-
 	err = doc.Validate(context.Background())
 	require.EqualError(t, err, `invalid paths: invalid path /pet: invalid operation POST: the responses object MUST contain at least one response code`)
 }

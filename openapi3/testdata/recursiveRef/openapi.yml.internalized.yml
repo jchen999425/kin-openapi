@@ -1,7 +1,7 @@
 {
   "components": {
     "parameters": {
-      "parameters_number": {
+      "number": {
         "in": "query",
         "name": "someNumber",
         "schema": {
@@ -22,34 +22,6 @@
       }
     },
     "schemas": {
-      "components_Bar": {
-        "example": "bar",
-        "type": "string"
-      },
-      "components_Cat": {
-        "properties": {
-          "cat": {
-            "$ref": "#/components/schemas/components_Cat"
-          }
-        },
-        "type": "object"
-      },
-      "components_Foo": {
-        "properties": {
-          "bar": {
-            "$ref": "#/components/schemas/components_Bar"
-          }
-        },
-        "type": "object"
-      },
-      "components_Foo_Foo2": {
-        "properties": {
-          "foo": {
-            "$ref": "#/components/schemas/components_Foo"
-          }
-        },
-        "type": "object"
-      },
       "Bar": {
         "example": "bar",
         "type": "string"
@@ -61,7 +33,7 @@
       "Foo": {
         "properties": {
           "bar": {
-            "$ref": "#/components/schemas/components_Bar"
+            "$ref": "#/components/schemas/Bar"
           }
         },
         "type": "object"
@@ -69,15 +41,19 @@
       "Foo2": {
         "properties": {
           "foo": {
-            "$ref": "#/components/schemas/components_Foo"
+            "$ref": "#/components/schemas/Foo"
           }
         },
         "type": "object"
       },
+      "error":{
+        "title":"ErrorDetails",
+        "type":"object"
+      },
       "Cat": {
         "properties": {
           "cat": {
-            "$ref": "#/components/schemas/components_Cat"
+            "$ref": "#/components/schemas/Cat"
           }
         },
         "type": "object"
@@ -110,7 +86,7 @@
                 "schema": {
                   "properties": {
                     "foo2": {
-                      "$ref": "#/components/schemas/components_Foo_Foo2"
+                      "$ref": "#/components/schemas/Foo2"
                     }
                   },
                   "type": "object"
@@ -126,7 +102,7 @@
       },
       "parameters": [
         {
-          "$ref": "#/components/parameters/parameters_number"
+          "$ref": "#/components/parameters/number"
         }
       ]
     }

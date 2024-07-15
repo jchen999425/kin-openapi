@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/openapi3filter"
+	"github.com/jchen999425/kin-openapi/routers/gorillamux"
 )
 
 func Example() {
@@ -53,12 +53,12 @@ func Example() {
 	err = openapi3filter.ValidateResponse(ctx, responseValidationInput)
 	fmt.Println(err)
 	// Output:
-	// response body doesn't match schema pathref.openapi.yml#/components/schemas/TestSchema: value must be a string
+	// response body doesn't match the schema: field must be set to string or not be present
 	// Schema:
 	//   {
 	//     "type": "string"
 	//   }
 	//
 	// Value:
-	//   {}
+	//   "object"
 }

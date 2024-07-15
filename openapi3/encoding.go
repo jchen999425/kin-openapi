@@ -2,15 +2,16 @@ package openapi3
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
+
+	"github.com/jchen999425/kin-openapi/jsoninfo"
 )
 
 // Encoding is specified by OpenAPI/Swagger 3.0 standard.
-// See https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#encoding-object
+// See https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#encodingObject
 type Encoding struct {
-	Extensions map[string]any `json:"-" yaml:"-"`
+	ExtensionProps `json:"-" yaml:"-"`
 
 	ContentType   string  `json:"contentType,omitempty" yaml:"contentType,omitempty"`
 	Headers       Headers `json:"headers,omitempty" yaml:"headers,omitempty"`
@@ -40,56 +41,13 @@ func (encoding *Encoding) WithHeaderRef(name string, ref *HeaderRef) *Encoding {
 }
 
 // MarshalJSON returns the JSON encoding of Encoding.
-func (encoding Encoding) MarshalJSON() ([]byte, error) {
-	x, err := encoding.MarshalYAML()
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(x)
-}
-
-// MarshalYAML returns the YAML encoding of Encoding.
-func (encoding Encoding) MarshalYAML() (any, error) {
-	m := make(map[string]any, 5+len(encoding.Extensions))
-	for k, v := range encoding.Extensions {
-		m[k] = v
-	}
-	if x := encoding.ContentType; x != "" {
-		m["contentType"] = x
-	}
-	if x := encoding.Headers; len(x) != 0 {
-		m["headers"] = x
-	}
-	if x := encoding.Style; x != "" {
-		m["style"] = x
-	}
-	if x := encoding.Explode; x != nil {
-		m["explode"] = x
-	}
-	if x := encoding.AllowReserved; x {
-		m["allowReserved"] = x
-	}
-	return m, nil
+func (encoding *Encoding) MarshalJSON() ([]byte, error) {
+	return jsoninfo.MarshalStrictStruct(encoding)
 }
 
 // UnmarshalJSON sets Encoding to a copy of data.
 func (encoding *Encoding) UnmarshalJSON(data []byte) error {
-	type EncodingBis Encoding
-	var x EncodingBis
-	if err := json.Unmarshal(data, &x); err != nil {
-		return unmarshalError(err)
-	}
-	_ = json.Unmarshal(data, &x.Extensions)
-	delete(x.Extensions, "contentType")
-	delete(x.Extensions, "headers")
-	delete(x.Extensions, "style")
-	delete(x.Extensions, "explode")
-	delete(x.Extensions, "allowReserved")
-	if len(x.Extensions) == 0 {
-		x.Extensions = nil
-	}
-	*encoding = Encoding(x)
-	return nil
+	return jsoninfo.UnmarshalStrictStruct(data, encoding)
 }
 
 // SerializationMethod returns a serialization method of request body.
@@ -108,9 +66,7 @@ func (encoding *Encoding) SerializationMethod() *SerializationMethod {
 }
 
 // Validate returns an error if Encoding does not comply with the OpenAPI spec.
-func (encoding *Encoding) Validate(ctx context.Context, opts ...ValidationOption) error {
-	ctx = WithValidationOptions(ctx, opts...)
-
+func (encoding *Encoding) Validate(ctx context.Context) error {
 	if encoding == nil {
 		return nil
 	}
@@ -144,5 +100,5 @@ func (encoding *Encoding) Validate(ctx context.Context, opts ...ValidationOption
 		return fmt.Errorf("serialization method with style=%q and explode=%v is not supported by media type", sm.Style, sm.Explode)
 	}
 
-	return validateExtensions(ctx, encoding.Extensions)
+	return nil
 }

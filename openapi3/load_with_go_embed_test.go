@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/openapi3"
 )
 
 //go:embed testdata/recursiveRef/*
@@ -30,15 +30,6 @@ func Example() {
 		panic(err)
 	}
 
-	fmt.Println(doc.
-		Paths.Value("/foo").
-		Get.Responses.Value("200").Value.
-		Content["application/json"].
-		Schema.Value.
-		Properties["foo2"].Value.
-		Properties["foo"].Value.
-		Properties["bar"].Value.
-		Type,
-	)
-	// Output: &[string]
+	fmt.Println(doc.Paths["/foo"].Get.Responses["200"].Value.Content["application/json"].Schema.Value.Properties["foo2"].Value.Properties["foo"].Value.Properties["bar"].Value.Type)
+	// Output: string
 }

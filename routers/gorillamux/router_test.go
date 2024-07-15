@@ -6,11 +6,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/routers"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/routers"
 )
 
 func TestRouter(t *testing.T) {
@@ -32,8 +31,8 @@ func TestRouter(t *testing.T) {
 			Title:   "MyAPI",
 			Version: "0.1",
 		},
-		Paths: openapi3.NewPaths(
-			openapi3.WithPath("/hello", &openapi3.PathItem{
+		Paths: openapi3.Paths{
+			"/hello": &openapi3.PathItem{
 				Connect: helloCONNECT,
 				Delete:  helloDELETE,
 				Get:     helloGET,
@@ -43,34 +42,34 @@ func TestRouter(t *testing.T) {
 				Post:    helloPOST,
 				Put:     helloPUT,
 				Trace:   helloTRACE,
-			}),
-			openapi3.WithPath("/onlyGET", &openapi3.PathItem{
+			},
+			"/onlyGET": &openapi3.PathItem{
 				Get: helloGET,
-			}),
-			openapi3.WithPath("/params/{x}/{y}/{z:.*}", &openapi3.PathItem{
+			},
+			"/params/{x}/{y}/{z:.*}": &openapi3.PathItem{
 				Get: paramsGET,
 				Parameters: openapi3.Parameters{
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("x").WithSchema(openapi3.NewStringSchema())},
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("y").WithSchema(openapi3.NewFloat64Schema())},
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("z").WithSchema(openapi3.NewIntegerSchema())},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("x")},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("y")},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("z")},
 				},
-			}),
-			openapi3.WithPath("/books/{bookid}", &openapi3.PathItem{
+			},
+			"/books/{bookid}": &openapi3.PathItem{
 				Get: paramsGET,
 				Parameters: openapi3.Parameters{
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("bookid").WithSchema(openapi3.NewStringSchema())},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("bookid")},
 				},
-			}),
-			openapi3.WithPath("/books/{bookid}.json", &openapi3.PathItem{
+			},
+			"/books/{bookid}.json": &openapi3.PathItem{
 				Post: booksPOST,
 				Parameters: openapi3.Parameters{
-					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("bookid2").WithSchema(openapi3.NewStringSchema())},
+					&openapi3.ParameterRef{Value: openapi3.NewPathParameter("bookid")},
 				},
-			}),
-			openapi3.WithPath("/partial", &openapi3.PathItem{
+			},
+			"/partial": &openapi3.PathItem{
 				Get: partialGET,
-			}),
-		),
+			},
+		},
 	}
 
 	expect := func(r routers.Router, method string, uri string, operation *openapi3.Operation, params map[string]string) {
@@ -80,7 +79,7 @@ func TestRouter(t *testing.T) {
 		route, pathParams, err := r.FindRoute(req)
 		if err != nil {
 			if operation == nil {
-				pathItem := doc.Paths.Value(uri)
+				pathItem := doc.Paths[uri]
 				if pathItem == nil {
 					if err.Error() != routers.ErrPathNotFound.Error() {
 						t.Fatalf("'%s %s': should have returned %q, but it returned an error: %v", method, uri, routers.ErrPathNotFound, err)
@@ -250,18 +249,7 @@ func TestServerPath(t *testing.T) {
 			"http://example.com:{port}/path",
 			map[string]string{
 				"port": "8088",
-			}),
-		newServerWithVariables(
-			"{server}",
-			map[string]string{
-				"server": "/",
-			}),
-		newServerWithVariables(
-			"/",
-			nil,
-		),
-	},
-		Paths: openapi3.NewPaths(),
+			})},
 	})
 	require.NoError(t, err)
 }
@@ -279,16 +267,16 @@ func TestServerOverrideAtPathLevel(t *testing.T) {
 				URL: "https://example.com",
 			},
 		},
-		Paths: openapi3.NewPaths(
-			openapi3.WithPath("/hello", &openapi3.PathItem{
+		Paths: openapi3.Paths{
+			"/hello": &openapi3.PathItem{
 				Servers: openapi3.Servers{
 					&openapi3.Server{
 						URL: "https://another.com",
 					},
 				},
 				Get: helloGET,
-			}),
-		),
+			},
+		},
 	}
 	err := doc.Validate(context.Background())
 	require.NoError(t, err)
@@ -320,11 +308,11 @@ func TestRelativeURL(t *testing.T) {
 				URL: "/api/v1",
 			},
 		},
-		Paths: openapi3.NewPaths(
-			openapi3.WithPath("/hello", &openapi3.PathItem{
+		Paths: openapi3.Paths{
+			"/hello": &openapi3.PathItem{
 				Get: helloGET,
-			}),
-		),
+			},
+		},
 	}
 	err := doc.Validate(context.Background())
 	require.NoError(t, err)
@@ -337,157 +325,6 @@ func TestRelativeURL(t *testing.T) {
 	require.Equal(t, "/hello", route.Path)
 }
 
-func Test_makeServers(t *testing.T) {
-	type testStruct struct {
-		name    string
-		servers openapi3.Servers
-		want    []srv
-		wantErr bool
-		initFn  func(tt *testStruct)
-	}
-	tests := []testStruct{
-		{
-			name: "server is root path",
-			servers: openapi3.Servers{
-				newServerWithVariables("/", nil),
-			},
-			want: []srv{{
-				schemes:     nil,
-				host:        "",
-				base:        "",
-				server:      nil,
-				varsUpdater: nil,
-			}},
-			wantErr: false,
-			initFn: func(tt *testStruct) {
-				for i, server := range tt.servers {
-					tt.want[i].server = server
-				}
-			},
-		},
-		{
-			name: "server with single variable that evaluates to root path",
-			servers: openapi3.Servers{
-				newServerWithVariables("{server}", map[string]string{"server": "/"}),
-			},
-			want: []srv{{
-				schemes:     nil,
-				host:        "",
-				base:        "",
-				server:      nil,
-				varsUpdater: nil,
-			}},
-			wantErr: false,
-			initFn: func(tt *testStruct) {
-				for i, server := range tt.servers {
-					tt.want[i].server = server
-				}
-			},
-		},
-		{
-			name: "server is http://localhost:28002",
-			servers: openapi3.Servers{
-				newServerWithVariables("http://localhost:28002", nil),
-			},
-			want: []srv{{
-				schemes:     []string{"http"},
-				host:        "localhost:28002",
-				base:        "",
-				server:      nil,
-				varsUpdater: nil,
-			}},
-			wantErr: false,
-			initFn: func(tt *testStruct) {
-				for i, server := range tt.servers {
-					tt.want[i].server = server
-				}
-			},
-		},
-		{
-			name: "server with single variable that evaluates to http://localhost:28002",
-			servers: openapi3.Servers{
-				newServerWithVariables("{server}", map[string]string{"server": "http://localhost:28002"}),
-			},
-			want: []srv{{
-				schemes:     []string{"http"},
-				host:        "localhost:28002",
-				base:        "",
-				server:      nil,
-				varsUpdater: nil,
-			}},
-			wantErr: false,
-			initFn: func(tt *testStruct) {
-				for i, server := range tt.servers {
-					tt.want[i].server = server
-				}
-			},
-		},
-		{
-			name: "server with multiple variables that evaluates to http://localhost:28002",
-			servers: openapi3.Servers{
-				newServerWithVariables("{scheme}://{host}:{port}", map[string]string{"scheme": "http", "host": "localhost", "port": "28002"}),
-			},
-			want: []srv{{
-				schemes:     []string{"http"},
-				host:        "{host}:28002",
-				base:        "",
-				server:      nil,
-				varsUpdater: func(vars map[string]string) { vars["port"] = "28002" },
-			}},
-			wantErr: false,
-			initFn: func(tt *testStruct) {
-				for i, server := range tt.servers {
-					tt.want[i].server = server
-				}
-			},
-		},
-		{
-			name: "server with unparsable URL fails",
-			servers: openapi3.Servers{
-				newServerWithVariables("exam^ple.com:443", nil),
-			},
-			want:    nil,
-			wantErr: true,
-			initFn:  nil,
-		},
-		{
-			name: "server with single variable that evaluates to unparsable URL fails",
-			servers: openapi3.Servers{
-				newServerWithVariables("{server}", map[string]string{"server": "exam^ple.com:443"}),
-			},
-			want:    nil,
-			wantErr: true,
-			initFn:  nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.initFn != nil {
-				tt.initFn(&tt)
-			}
-			got, err := makeServers(tt.servers)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("makeServers() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			assert.Equal(t, len(tt.want), len(got), "expected and actual servers lengths are not equal")
-			for i := 0; i < len(tt.want); i++ {
-				// Unfortunately using assert.Equals or reflect.DeepEquals isn't
-				// an option because function pointers cannot be compared
-				assert.Equal(t, tt.want[i].schemes, got[i].schemes)
-				assert.Equal(t, tt.want[i].host, got[i].host)
-				assert.Equal(t, tt.want[i].host, got[i].host)
-				assert.Equal(t, tt.want[i].server, got[i].server)
-				if tt.want[i].varsUpdater == nil {
-					assert.Nil(t, got[i].varsUpdater, "expected and actual varsUpdater should point to same function")
-				} else {
-					assert.NotNil(t, got[i].varsUpdater, "expected and actual varsUpdater should point to same function")
-				}
-			}
-		})
-	}
-}
-
 func newServerWithVariables(url string, variables map[string]string) *openapi3.Server {
 	var serverVariables = map[string]*openapi3.ServerVariable{}
 
@@ -496,16 +333,18 @@ func newServerWithVariables(url string, variables map[string]string) *openapi3.S
 	}
 
 	return &openapi3.Server{
-		URL:         url,
-		Description: "",
-		Variables:   serverVariables,
+		ExtensionProps: openapi3.ExtensionProps{},
+		URL:            url,
+		Description:    "",
+		Variables:      serverVariables,
 	}
 }
 
 func newServerVariable(defaultValue string) *openapi3.ServerVariable {
 	return &openapi3.ServerVariable{
-		Enum:        nil,
-		Default:     defaultValue,
-		Description: "",
+		ExtensionProps: openapi3.ExtensionProps{},
+		Enum:           nil,
+		Default:        defaultValue,
+		Description:    "",
 	}
 }

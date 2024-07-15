@@ -3,16 +3,16 @@ package openapi2_test
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"reflect"
 
 	"github.com/invopop/yaml"
 
-	"github.com/getkin/kin-openapi/openapi2"
+	"github.com/jchen999425/kin-openapi/openapi2"
 )
 
 func Example() {
-	input, err := os.ReadFile("testdata/swagger.json")
+	input, err := ioutil.ReadFile("testdata/swagger.json")
 	if err != nil {
 		panic(err)
 	}

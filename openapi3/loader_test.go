@@ -1,7 +1,6 @@
 package openapi3
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 	"net/http"
@@ -56,79 +55,30 @@ paths:
 `)
 
 	loader := NewLoader()
-
 	doc, err := loader.LoadFromData(spec)
 	require.NoError(t, err)
 	require.Equal(t, "An API", doc.Info.Title)
 	require.Equal(t, 2, len(doc.Components.Schemas))
-	require.Equal(t, 1, doc.Paths.Len())
-	require.Equal(t, "unexpected error", *doc.Paths.Value("/items").Put.Responses.Default().Value.Description)
-
+	require.Equal(t, 1, len(doc.Paths))
+	def := doc.Paths["/items"].Put.Responses.Default().Value
+	desc := "unexpected error"
+	require.Equal(t, &desc, def.Description)
 	err = doc.Validate(loader.Context)
 	require.NoError(t, err)
-}
-
-func TestIssue731(t *testing.T) {
-	spec := []byte(`
-openapi: 3.0.0
-info:
-  title: An API
-  version: v1
-paths:
-  /items:
-    put:
-      description: ''
-      requestBody:
-        required: true
-      # Note mis-indented content block
-      content:
-        application/json:
-          schema:
-            type: object
-      responses:
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                type: object
-`[1:])
-
-	loader := NewLoader()
-
-	doc, err := loader.LoadFromData(spec)
-	require.NoError(t, err)
-
-	err = doc.Validate(loader.Context)
-	require.ErrorContains(t, err, `content of the request body is required`)
 }
 
 func ExampleLoader() {
-	spec := []byte(`
-openapi: 3.0.1
-paths: {}
-info:
-  version: 1.1.1
-  title: title
-  description: An API
-`[1:])
-
-	loader := NewLoader()
-	doc, err := loader.LoadFromData(spec)
+	const source = `{"info":{"description":"An API"}}`
+	doc, err := NewLoader().LoadFromData([]byte(source))
 	if err != nil {
 		panic(err)
 	}
-
-	if err := doc.Validate(loader.Context); err != nil {
-		panic(err)
-	}
-
 	fmt.Print(doc.Info.Description)
 	// Output: An API
 }
 
 func TestResolveSchemaRef(t *testing.T) {
-	source := []byte(`{"openapi":"3.0.0","info":{"title":"MyAPI","version":"0.1","description":"An API"},"paths":{},"components":{"schemas":{"B":{"type":"string"},"A":{"allOf":[{"$ref":"#/components/schemas/B"}]}}}}`)
+	source := []byte(`{"openapi":"3.0.0","info":{"title":"MyAPI","version":"0.1",description":"An API"},"paths":{},"components":{"schemas":{"B":{"type":"string"},"A":{"allOf":[{"$ref":"#/components/schemas/B"}]}}}}`)
 	loader := NewLoader()
 	doc, err := loader.LoadFromData(source)
 	require.NoError(t, err)
@@ -138,6 +88,15 @@ func TestResolveSchemaRef(t *testing.T) {
 	refAVisited := doc.Components.Schemas["A"].Value.AllOf[0]
 	require.Equal(t, "#/components/schemas/B", refAVisited.Ref)
 	require.NotNil(t, refAVisited.Value)
+}
+
+func TestResolveSchemaRefWithNullSchemaRef(t *testing.T) {
+	source := []byte(`{"openapi":"3.0.0","info":{"title":"MyAPI","version":"0.1","description":"An API"},"paths":{"/foo":{"post":{"requestBody":{"content":{"application/json":{"schema":null}}}}}}}`)
+	loader := NewLoader()
+	doc, err := loader.LoadFromData(source)
+	require.NoError(t, err)
+	err = doc.Validate(loader.Context)
+	require.EqualError(t, err, `invalid paths: invalid path /foo: invalid operation POST: found unresolved ref: ""`)
 }
 
 func TestResolveResponseExampleRef(t *testing.T) {
@@ -169,9 +128,9 @@ paths:
 	err = doc.Validate(loader.Context)
 	require.NoError(t, err)
 
-	example := doc.Paths.Value("/").Get.Responses.Status(200).Value.Content.Get("application/json").Examples["test"]
+	example := doc.Paths["/"].Get.Responses.Get(200).Value.Content.Get("application/json").Examples["test"]
 	require.NotNil(t, example.Value)
-	require.Equal(t, example.Value.Value.(map[string]any)["error"].(bool), false)
+	require.Equal(t, example.Value.Value.(map[string]interface{})["error"].(bool), false)
 }
 
 func TestLoadErrorOnRefMisuse(t *testing.T) {
@@ -232,7 +191,7 @@ paths:
 	doc, err := loader.LoadFromData(spec)
 	require.NoError(t, err)
 
-	require.NotNil(t, doc.Paths.Value("/").Parameters[0].Value)
+	require.NotNil(t, doc.Paths["/"].Parameters[0].Value)
 }
 
 func TestLoadRequestExampleRef(t *testing.T) {
@@ -264,7 +223,7 @@ paths:
 	doc, err := loader.LoadFromData(spec)
 	require.NoError(t, err)
 
-	require.NotNil(t, doc.Paths.Value("/").Post.RequestBody.Value.Content.Get("application/json").Examples["test"])
+	require.NotNil(t, doc.Paths["/"].Post.RequestBody.Value.Content.Get("application/json").Examples["test"])
 }
 
 func createTestServer(t *testing.T, handler http.Handler) *httptest.Server {
@@ -290,7 +249,7 @@ func TestLoadFromRemoteURL(t *testing.T) {
 	doc, err := loader.LoadFromURI(url)
 	require.NoError(t, err)
 
-	require.Equal(t, &Types{"string"}, doc.Components.Schemas["TestSchema"].Value.Type)
+	require.Equal(t, "string", doc.Components.Schemas["TestSchema"].Value.Type)
 }
 
 func TestLoadWithReferenceInReference(t *testing.T) {
@@ -301,7 +260,7 @@ func TestLoadWithReferenceInReference(t *testing.T) {
 	require.NotNil(t, doc)
 	err = doc.Validate(loader.Context)
 	require.NoError(t, err)
-	require.Equal(t, &Types{"string"}, doc.Paths.Value("/api/test/ref/in/ref").Post.RequestBody.Value.Content["application/json"].Schema.Value.Properties["definition_reference"].Value.Type)
+	require.Equal(t, "string", doc.Paths["/api/test/ref/in/ref"].Post.RequestBody.Value.Content["application/json"].Schema.Value.Properties["definition_reference"].Value.Type)
 }
 
 func TestLoadWithRecursiveReferenceInLocalReferenceInParentSubdir(t *testing.T) {
@@ -312,10 +271,10 @@ func TestLoadWithRecursiveReferenceInLocalReferenceInParentSubdir(t *testing.T) 
 	require.NotNil(t, doc)
 	err = doc.Validate(loader.Context)
 	require.NoError(t, err)
-	require.Equal(t, &Types{"object"}, doc.Paths.Value("/api/test/ref/in/ref").Post.RequestBody.Value.Content["application/json"].Schema.Value.Properties["definition_reference"].Value.Type)
+	require.Equal(t, "object", doc.Paths["/api/test/ref/in/ref"].Post.RequestBody.Value.Content["application/json"].Schema.Value.Properties["definition_reference"].Value.Type)
 }
 
-func TestLoadWithRecursiveReferenceInReferenceInLocalReference(t *testing.T) {
+func TestLoadWithRecursiveReferenceInRefrerenceInLocalReference(t *testing.T) {
 	loader := NewLoader()
 	loader.IsExternalRefsAllowed = true
 	doc, err := loader.LoadFromFile("testdata/refInLocalRef/openapi.json")
@@ -323,8 +282,8 @@ func TestLoadWithRecursiveReferenceInReferenceInLocalReference(t *testing.T) {
 	require.NotNil(t, doc)
 	err = doc.Validate(loader.Context)
 	require.NoError(t, err)
-	require.Equal(t, &Types{"integer"}, doc.Paths.Value("/api/test/ref/in/ref").Post.RequestBody.Value.Content["application/json"].Schema.Value.Properties["data"].Value.Properties["definition_reference"].Value.Properties["ref_prop_part"].Value.Properties["idPart"].Value.Type)
-	require.Equal(t, "int64", doc.Paths.Value("/api/test/ref/in/ref").Post.RequestBody.Value.Content["application/json"].Schema.Value.Properties["data"].Value.Properties["definition_reference"].Value.Properties["ref_prop_part"].Value.Properties["idPart"].Value.Format)
+	require.Equal(t, "integer", doc.Paths["/api/test/ref/in/ref"].Post.RequestBody.Value.Content["application/json"].Schema.Value.Properties["data"].Value.Properties["definition_reference"].Value.Properties["ref_prop_part"].Value.Properties["idPart"].Value.Type)
+	require.Equal(t, "int64", doc.Paths["/api/test/ref/in/ref"].Post.RequestBody.Value.Content["application/json"].Schema.Value.Properties["data"].Value.Properties["definition_reference"].Value.Properties["ref_prop_part"].Value.Properties["idPart"].Value.Format)
 }
 
 func TestLoadWithReferenceInReferenceInProperty(t *testing.T) {
@@ -335,7 +294,7 @@ func TestLoadWithReferenceInReferenceInProperty(t *testing.T) {
 	require.NotNil(t, doc)
 	err = doc.Validate(loader.Context)
 	require.NoError(t, err)
-	require.Equal(t, "Problem details", doc.Paths.Value("/api/test/ref/in/ref/in/property").Post.Responses.Value("401").Value.Content["application/json"].Schema.Value.Properties["error"].Value.Title)
+	require.Equal(t, "Problem details", doc.Paths["/api/test/ref/in/ref/in/property"].Post.Responses["401"].Value.Content["application/json"].Schema.Value.Properties["error"].Value.Title)
 }
 
 func TestLoadFileWithExternalSchemaRef(t *testing.T) {
@@ -394,8 +353,8 @@ func TestLoadRequestResponseHeaderRef(t *testing.T) {
 	doc, err := loader.LoadFromData(spec)
 	require.NoError(t, err)
 
-	require.NotNil(t, doc.Paths.Value("/test").Post.Responses.Default().Value.Headers["X-TEST-HEADER"].Value.Description)
-	require.Equal(t, "testheader", doc.Paths.Value("/test").Post.Responses.Default().Value.Headers["X-TEST-HEADER"].Value.Description)
+	require.NotNil(t, doc.Paths["/test"].Post.Responses["default"].Value.Headers["X-TEST-HEADER"].Value.Description)
+	require.Equal(t, "testheader", doc.Paths["/test"].Post.Responses["default"].Value.Headers["X-TEST-HEADER"].Value.Description)
 }
 
 func TestLoadFromDataWithExternalRequestResponseHeaderRemoteRef(t *testing.T) {
@@ -434,8 +393,8 @@ func TestLoadFromDataWithExternalRequestResponseHeaderRemoteRef(t *testing.T) {
 	doc, err := loader.LoadFromDataWithPath(spec, &url.URL{Path: "testdata/testfilename.openapi.json"})
 	require.NoError(t, err)
 
-	require.NotNil(t, doc.Paths.Value("/test").Post.Responses.Default().Value.Headers["X-TEST-HEADER"].Value.Description)
-	require.Equal(t, "description", doc.Paths.Value("/test").Post.Responses.Default().Value.Headers["X-TEST-HEADER"].Value.Description)
+	require.NotNil(t, doc.Paths["/test"].Post.Responses["default"].Value.Headers["X-TEST-HEADER"].Value.Description)
+	require.Equal(t, "description", doc.Paths["/test"].Post.Responses["default"].Value.Headers["X-TEST-HEADER"].Value.Description)
 }
 
 func TestLoadYamlFile(t *testing.T) {
@@ -462,8 +421,8 @@ func TestLoadYamlFileWithExternalPathRef(t *testing.T) {
 	doc, err := loader.LoadFromFile("testdata/pathref.openapi.yml")
 	require.NoError(t, err)
 
-	require.NotNil(t, doc.Paths.Value("/test").Get.Responses.Value("200").Value.Content["application/json"].Schema.Value.Type)
-	require.Equal(t, &Types{"string"}, doc.Paths.Value("/test").Get.Responses.Value("200").Value.Content["application/json"].Schema.Value.Type)
+	require.NotNil(t, doc.Paths["/test"].Get.Responses["200"].Value.Content["application/json"].Schema.Value.Type)
+	require.Equal(t, "string", doc.Paths["/test"].Get.Responses["200"].Value.Content["application/json"].Schema.Value.Type)
 }
 
 func TestResolveResponseLinkRef(t *testing.T) {
@@ -505,7 +464,7 @@ paths:
 	err = doc.Validate(loader.Context)
 	require.NoError(t, err)
 
-	response := doc.Paths.Value("/users/{id}").Get.Responses.Status(200).Value
+	response := doc.Paths[`/users/{id}`].Get.Responses.Get(200).Value
 	link := response.Links[`father`].Value
 	require.NotNil(t, link)
 	require.Equal(t, "getUserById", link.OperationID)
@@ -518,9 +477,9 @@ func TestLinksFromOAISpec(t *testing.T) {
 	require.NoError(t, err)
 	err = doc.Validate(loader.Context)
 	require.NoError(t, err)
-	response := doc.Paths.Value("/2.0/repositories/{username}/{slug}").Get.Responses.Status(200).Value
+	response := doc.Paths[`/2.0/repositories/{username}/{slug}`].Get.Responses.Get(200).Value
 	link := response.Links[`repositoryPullRequests`].Value
-	require.Equal(t, map[string]any{
+	require.Equal(t, map[string]interface{}{
 		"username": "$response.body#/owner/username",
 		"slug":     "$response.body#/slug",
 	}, link.Parameters)
@@ -621,54 +580,4 @@ servers:
 			}
 		})
 	}
-}
-
-func TestReadFromIoReader(t *testing.T) {
-	buffer := bytes.NewReader([]byte(`openapi: 3.0.0
-info:
-  title: An API
-  version: v1
-components:
-  schemas:
-    NewItem:
-      required: [name]
-      properties:
-        name: {type: string}
-        tag: {type: string}
-    ErrorModel:
-      type: object
-      required: [code, message]
-      properties:
-        code: {type: integer}
-        message: {type: string}
-paths:
-  /items:
-    put:
-      description: ''
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewItem'
-      responses:
-        default: &defaultResponse # a YAML ref
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorModel'`))
-
-	loader := NewLoader()
-	doc, err := loader.LoadFromIoReader(buffer)
-	require.NoError(t, err)
-
-	err = doc.Validate(loader.Context)
-	require.NoError(t, err)
-}
-
-func TestReadFromIoReader_Nil(t *testing.T) {
-	loader := NewLoader()
-	_, err := loader.LoadFromIoReader(nil)
-	require.EqualError(t, err, "invalid reader: <nil>")
 }

@@ -36,7 +36,9 @@ func TestJSONSpecResponseDescriptionEmptiness(t *testing.T) {
 		loader := NewLoader()
 		doc, err := loader.LoadFromData(spec)
 		require.NoError(t, err)
-		require.Equal(t, "", *doc.Paths.Value("/path1").Get.Responses.Value("200").Value.Description)
+		got := doc.Paths["/path1"].Get.Responses["200"].Value.Description
+		expected := ""
+		require.Equal(t, &expected, got)
 		t.Log("Empty description provided: valid spec")
 		err = doc.Validate(loader.Context)
 		require.NoError(t, err)
@@ -47,7 +49,9 @@ func TestJSONSpecResponseDescriptionEmptiness(t *testing.T) {
 		loader := NewLoader()
 		doc, err := loader.LoadFromData(spec)
 		require.NoError(t, err)
-		require.Equal(t, "My response", *doc.Paths.Value("/path1").Get.Responses.Value("200").Value.Description)
+		got := doc.Paths["/path1"].Get.Responses["200"].Value.Description
+		expected := "My response"
+		require.Equal(t, &expected, got)
 		t.Log("Non-empty description provided: valid spec")
 		err = doc.Validate(loader.Context)
 		require.NoError(t, err)
@@ -57,7 +61,8 @@ func TestJSONSpecResponseDescriptionEmptiness(t *testing.T) {
 		loader := NewLoader()
 		doc, err := loader.LoadFromData(data)
 		require.NoError(t, err)
-		require.Nil(t, doc.Paths.Value("/path1").Get.Responses.Value("200").Value.Description)
+		got := doc.Paths["/path1"].Get.Responses["200"].Value.Description
+		require.Nil(t, got)
 		t.Log("No description provided: invalid spec")
 		err = doc.Validate(loader.Context)
 		require.Error(t, err)

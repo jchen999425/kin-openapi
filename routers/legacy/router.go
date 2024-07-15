@@ -13,9 +13,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/routers"
-	"github.com/getkin/kin-openapi/routers/legacy/pathpattern"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/routers"
+	"github.com/jchen999425/kin-openapi/routers/legacy/pathpattern"
 )
 
 // Routers maps a HTTP request to a Router.
@@ -64,7 +64,7 @@ func NewRouter(doc *openapi3.T, opts ...openapi3.ValidationOption) (routers.Rout
 	}
 	router := &Router{doc: doc}
 	root := router.node()
-	for path, pathItem := range doc.Paths.Map() {
+	for path, pathItem := range doc.Paths {
 		for method, operation := range pathItem.Operations() {
 			method = strings.ToUpper(method)
 			if err := root.Add(method+" "+path, &routers.Route{
@@ -124,7 +124,7 @@ func (router *Router) FindRoute(req *http.Request) (*routers.Route, map[string]s
 				Reason: routers.ErrPathNotFound.Error(),
 			}
 		}
-		pathParams = make(map[string]string)
+		pathParams = make(map[string]string, 8)
 		paramNames, err := server.ParameterNames()
 		if err != nil {
 			return nil, nil, err
@@ -143,7 +143,7 @@ func (router *Router) FindRoute(req *http.Request) (*routers.Route, map[string]s
 		route, _ = node.Value.(*routers.Route)
 	}
 	if route == nil {
-		pathItem := doc.Paths.Value(remainingPath)
+		pathItem := doc.Paths[remainingPath]
 		if pathItem == nil {
 			return nil, nil, &routers.RouteError{Reason: routers.ErrPathNotFound.Error()}
 		}
@@ -157,7 +157,10 @@ func (router *Router) FindRoute(req *http.Request) (*routers.Route, map[string]s
 	}
 	paramKeys := node.VariableNames
 	for i, value := range paramValues {
-		key := strings.TrimSuffix(paramKeys[i], "*")
+		key := paramKeys[i]
+		if strings.HasSuffix(key, "*") {
+			key = key[:len(key)-1]
+		}
 		pathParams[key] = value
 	}
 	return route, pathParams, nil

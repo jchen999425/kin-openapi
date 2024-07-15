@@ -7,9 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/openapi3filter"
+	"github.com/jchen999425/kin-openapi/routers/gorillamux"
 )
 
 func TestIssue625(t *testing.T) {
@@ -72,7 +72,7 @@ paths:
 			name:   "failed allof object array",
 			spec:   allOfArraySpec,
 			req:    `/items?test=1.2,3.1`,
-			errStr: `parameter "test" in query has an error: path 0: value 1.2: an invalid integer: invalid syntax`,
+			errStr: `parameter "test" in query has an error: Error at "/0": value "1.2" must be an integer`,
 		},
 		{
 			name: "success oneof object array",
@@ -80,7 +80,7 @@ paths:
 			req:  `/items?test=true,3`,
 		},
 		{
-			name:   "failed oneof object array",
+			name:   "faled oneof object array",
 			spec:   oneOfArraySpec,
 			req:    `/items?test="val1","val2"`,
 			errStr: `parameter "test" in query has an error: item 0: decoding oneOf failed: 0 schemas matched`,
@@ -115,7 +115,7 @@ paths:
 			if testcase.errStr == "" {
 				require.NoError(t, err)
 			} else {
-				require.ErrorContains(t, err, testcase.errStr)
+				require.Contains(t, err.Error(), testcase.errStr)
 			}
 		},
 		)

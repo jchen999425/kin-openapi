@@ -3,6 +3,7 @@ package openapi3
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -18,7 +19,7 @@ func TestEncodingJSON(t *testing.T) {
 	docA := &Encoding{}
 	err = json.Unmarshal(encodingJSON, &docA)
 	require.NoError(t, err)
-	require.NotEmpty(t, docA)
+	require.NotEmpty(t, data)
 
 	t.Log("Validate *openapi3.Encoding")
 	err = docA.Validate(context.Background())
@@ -44,6 +45,7 @@ var encodingJSON = []byte(`
 `)
 
 func encoding() *Encoding {
+	explode := true
 	return &Encoding{
 		ContentType: "application/json",
 		Headers: map[string]*HeaderRef{
@@ -52,12 +54,13 @@ func encoding() *Encoding {
 			},
 		},
 		Style:         "form",
-		Explode:       BoolPtr(true),
+		Explode:       &explode,
 		AllowReserved: true,
 	}
 }
 
 func TestEncodingSerializationMethod(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
 	testCases := []struct {
 		name string
 		enc  *Encoding
@@ -74,24 +77,24 @@ func TestEncodingSerializationMethod(t *testing.T) {
 		},
 		{
 			name: "encoding with explode",
-			enc:  &Encoding{Explode: BoolPtr(true)},
+			enc:  &Encoding{Explode: boolPtr(true)},
 			want: &SerializationMethod{Style: SerializationForm, Explode: true},
 		},
 		{
 			name: "encoding with no explode",
-			enc:  &Encoding{Explode: BoolPtr(false)},
+			enc:  &Encoding{Explode: boolPtr(false)},
 			want: &SerializationMethod{Style: SerializationForm, Explode: false},
 		},
 		{
 			name: "encoding with style and explode ",
-			enc:  &Encoding{Style: SerializationSpaceDelimited, Explode: BoolPtr(false)},
+			enc:  &Encoding{Style: SerializationSpaceDelimited, Explode: boolPtr(false)},
 			want: &SerializationMethod{Style: SerializationSpaceDelimited, Explode: false},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := tc.enc.SerializationMethod()
-			require.EqualValues(t, got, tc.want, "got %#v, want %#v", got, tc.want)
+			require.True(t, reflect.DeepEqual(got, tc.want), "got %#v, want %#v", got, tc.want)
 		})
 	}
 }

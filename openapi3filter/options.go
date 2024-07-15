@@ -1,23 +1,19 @@
 package openapi3filter
 
-import "github.com/getkin/kin-openapi/openapi3"
+import "github.com/jchen999425/kin-openapi/openapi3"
+
+// DefaultOptions do not set an AuthenticationFunc.
+// A spec with security schemes defined will not pass validation
+// unless an AuthenticationFunc is defined.
+var DefaultOptions = &Options{}
 
 // Options used by ValidateRequest and ValidateResponse
 type Options struct {
 	// Set ExcludeRequestBody so ValidateRequest skips request body validation
 	ExcludeRequestBody bool
 
-	// Set ExcludeRequestQueryParams so ValidateRequest skips request query params validation
-	ExcludeRequestQueryParams bool
-
 	// Set ExcludeResponseBody so ValidateResponse skips response body validation
 	ExcludeResponseBody bool
-
-	// Set ExcludeReadOnlyValidations so ValidateRequest skips read-only validations
-	ExcludeReadOnlyValidations bool
-
-	// Set ExcludeWriteOnlyValidations so ValidateResponse skips write-only validations
-	ExcludeWriteOnlyValidations bool
 
 	// Set IncludeResponseStatus so ValidateResponse fails on response
 	// status not defined in OpenAPI spec
@@ -25,8 +21,6 @@ type Options struct {
 
 	MultiError bool
 
-	// A document with security schemes defined will not pass validation
-	// unless an AuthenticationFunc is defined.
 	// See NoopAuthenticationFunc
 	AuthenticationFunc AuthenticationFunc
 

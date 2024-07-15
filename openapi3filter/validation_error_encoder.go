@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/routers"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/routers"
 )
 
 // ValidationErrorEncoder wraps a base ErrorEncoder to handle ValidationErrors
@@ -17,18 +17,16 @@ type ValidationErrorEncoder struct {
 
 // Encode implements the ErrorEncoder interface for encoding ValidationErrors
 func (enc *ValidationErrorEncoder) Encode(ctx context.Context, err error, w http.ResponseWriter) {
-	enc.Encoder(ctx, ConvertErrors(err), w)
-}
-
-// ConvertErrors converts all errors to the appropriate error format.
-func ConvertErrors(err error) error {
 	if e, ok := err.(*routers.RouteError); ok {
-		return convertRouteError(e)
+		cErr := convertRouteError(e)
+		enc.Encoder(ctx, cErr, w)
+		return
 	}
 
 	e, ok := err.(*RequestError)
 	if !ok {
-		return err
+		enc.Encoder(ctx, err, w)
+		return
 	}
 
 	var cErr *ValidationError
@@ -45,9 +43,10 @@ func ConvertErrors(err error) error {
 	}
 
 	if cErr != nil {
-		return cErr
+		enc.Encoder(ctx, cErr, w)
+		return
 	}
-	return err
+	enc.Encoder(ctx, err, w)
 }
 
 func convertRouteError(e *routers.RouteError) *ValidationError {

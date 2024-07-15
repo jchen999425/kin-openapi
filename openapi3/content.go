@@ -10,7 +10,7 @@ import (
 type Content map[string]*MediaType
 
 func NewContent() Content {
-	return make(map[string]*MediaType)
+	return make(map[string]*MediaType, 4)
 }
 
 func NewContentWithSchema(schema *Schema, consumes []string) Content {
@@ -106,9 +106,7 @@ func (content Content) Get(mime string) *MediaType {
 }
 
 // Validate returns an error if Content does not comply with the OpenAPI spec.
-func (content Content) Validate(ctx context.Context, opts ...ValidationOption) error {
-	ctx = WithValidationOptions(ctx, opts...)
-
+func (content Content) Validate(ctx context.Context) error {
 	keys := make([]string, 0, len(content))
 	for key := range content {
 		keys = append(keys, key)

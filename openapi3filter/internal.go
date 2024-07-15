@@ -13,7 +13,7 @@ func parseMediaType(contentType string) string {
 	return contentType[:i]
 }
 
-func isNilValue(value any) bool {
+func isNilValue(value interface{}) bool {
 	if value == nil {
 		return true
 	}

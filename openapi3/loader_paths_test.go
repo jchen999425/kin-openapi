@@ -13,6 +13,7 @@ openapi: "3.0"
 info:
   version: "1.0"
   title: sample
+basePath: /adc/v1
 paths:
   PATH:
     get:

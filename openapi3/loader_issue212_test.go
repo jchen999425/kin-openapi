@@ -79,11 +79,11 @@ components:
 	require.NoError(t, err)
 
 	expected, err := json.Marshal(&Schema{
-		Type:     &Types{"object"},
+		Type:     "object",
 		Required: []string{"id", "uri"},
 		Properties: Schemas{
-			"id":  {Value: &Schema{Type: &Types{"string"}}},
-			"uri": {Value: &Schema{Type: &Types{"string"}}},
+			"id":  {Value: &Schema{Type: "string"}},
+			"uri": {Value: &Schema{Type: "string"}},
 		},
 	},
 	)

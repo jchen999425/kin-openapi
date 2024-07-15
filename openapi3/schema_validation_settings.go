@@ -8,13 +8,11 @@ import (
 type SchemaValidationOption func(*schemaValidationSettings)
 
 type schemaValidationSettings struct {
-	failfast                    bool
-	multiError                  bool
-	asreq, asrep                bool // exclusive (XOR) fields
-	formatValidationEnabled     bool
-	patternValidationDisabled   bool
-	readOnlyValidationDisabled  bool
-	writeOnlyValidationDisabled bool
+	failfast                  bool
+	multiError                bool
+	asreq, asrep              bool // exclusive (XOR) fields
+	formatValidationEnabled   bool
+	patternValidationDisabled bool
 
 	onceSettingDefaults sync.Once
 	defaultsSet         func()
@@ -47,16 +45,6 @@ func EnableFormatValidation() SchemaValidationOption {
 // DisablePatternValidation setting makes Validate not return an error when validating patterns that are not supported by the Go regexp engine.
 func DisablePatternValidation() SchemaValidationOption {
 	return func(s *schemaValidationSettings) { s.patternValidationDisabled = true }
-}
-
-// DisableReadOnlyValidation setting makes Validate not return an error when validating properties marked as read-only
-func DisableReadOnlyValidation() SchemaValidationOption {
-	return func(s *schemaValidationSettings) { s.readOnlyValidationDisabled = true }
-}
-
-// DisableWriteOnlyValidation setting makes Validate not return an error when validating properties marked as write-only
-func DisableWriteOnlyValidation() SchemaValidationOption {
-	return func(s *schemaValidationSettings) { s.writeOnlyValidationDisabled = true }
 }
 
 // DefaultsSet executes the given callback (once) IFF schema validation set default values.

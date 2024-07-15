@@ -14,5 +14,3 @@ components:
       properties:
         foo:
           $ref: "#/components/schemas/Foo"
-    Baz:
-      $ref: "./baz.yml#/BazNested"

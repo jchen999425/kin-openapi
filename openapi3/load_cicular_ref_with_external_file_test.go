@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/openapi3"
 )
 
 //go:embed testdata/circularRef/*
@@ -35,7 +35,7 @@ func TestLoadCircularRefFromFile(t *testing.T) {
 					Value: &openapi3.Schema{
 						Properties: map[string]*openapi3.SchemaRef{
 							"id": {
-								Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+								Value: &openapi3.Schema{Type: "string"}},
 						},
 					},
 				},
@@ -47,30 +47,16 @@ func TestLoadCircularRefFromFile(t *testing.T) {
 	bar.Value.Properties["foo"] = &openapi3.SchemaRef{Ref: "#/components/schemas/Foo", Value: foo.Value}
 	foo.Value.Properties["bar"] = &openapi3.SchemaRef{Ref: "#/components/schemas/Bar", Value: bar.Value}
 
-	bazNestedRef := &openapi3.SchemaRef{Ref: "./baz.yml#/BazNested"}
-	array := openapi3.NewArraySchema()
-	array.Items = bazNestedRef
-	bazNested := &openapi3.Schema{Properties: map[string]*openapi3.SchemaRef{
-		"bazArray": {
-			Value: &openapi3.Schema{
-				Items: bazNestedRef,
-			},
-		},
-		"baz": bazNestedRef,
-	}}
-	bazNestedRef.Value = bazNested
-
 	want := &openapi3.T{
 		OpenAPI: "3.0.3",
 		Info: &openapi3.Info{
 			Title:   "Recursive cyclic refs example",
 			Version: "1.0",
 		},
-		Components: &openapi3.Components{
-			Schemas: openapi3.Schemas{
+		Components: openapi3.Components{
+			Schemas: map[string]*openapi3.SchemaRef{
 				"Foo": foo,
 				"Bar": bar,
-				"Baz": bazNestedRef,
 			},
 		},
 	}

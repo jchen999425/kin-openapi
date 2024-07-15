@@ -1,4 +1,0 @@
-components:
-  schemas:
-    External1:
-      type: string

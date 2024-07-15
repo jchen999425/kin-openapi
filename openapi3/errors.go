@@ -39,7 +39,7 @@ func (me MultiError) Is(target error) bool {
 }
 
 // As allows you to use `errors.As()` to set target to the first error within the multi error that matches the target type
-func (me MultiError) As(target any) bool {
+func (me MultiError) As(target interface{}) bool {
 	for _, e := range me {
 		if errors.As(e, target) {
 			return true

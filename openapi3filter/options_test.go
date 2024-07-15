@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/openapi3filter"
+	"github.com/jchen999425/kin-openapi/routers/gorillamux"
 )
 
 func ExampleOptions_WithCustomSchemaErrorFunc() {
@@ -78,5 +78,5 @@ paths:
 
 	fmt.Println(err.Error())
 
-	// Output: request body has an error: doesn't match schema: field "Some field" must be an integer
+	// Output: request body has an error: doesn't match the schema: field "Some field" must be an integer
 }

@@ -16,9 +16,7 @@ func (srs *SecurityRequirements) With(securityRequirement SecurityRequirement) *
 }
 
 // Validate returns an error if SecurityRequirements does not comply with the OpenAPI spec.
-func (srs SecurityRequirements) Validate(ctx context.Context, opts ...ValidationOption) error {
-	ctx = WithValidationOptions(ctx, opts...)
-
+func (srs SecurityRequirements) Validate(ctx context.Context) error {
 	for _, security := range srs {
 		if err := security.Validate(ctx); err != nil {
 			return err
@@ -28,7 +26,7 @@ func (srs SecurityRequirements) Validate(ctx context.Context, opts ...Validation
 }
 
 // SecurityRequirement is specified by OpenAPI/Swagger standard version 3.
-// See https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#security-requirement-object
+// See https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#securityRequirementObject
 type SecurityRequirement map[string][]string
 
 func NewSecurityRequirement() SecurityRequirement {
@@ -44,8 +42,6 @@ func (security SecurityRequirement) Authenticate(provider string, scopes ...stri
 }
 
 // Validate returns an error if SecurityRequirement does not comply with the OpenAPI spec.
-func (security *SecurityRequirement) Validate(ctx context.Context, opts ...ValidationOption) error {
-	ctx = WithValidationOptions(ctx, opts...)
-
+func (security *SecurityRequirement) Validate(ctx context.Context) error {
 	return nil
 }

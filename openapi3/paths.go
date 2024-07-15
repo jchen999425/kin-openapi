@@ -9,53 +9,26 @@ import (
 
 // Paths is specified by OpenAPI/Swagger standard version 3.
 // See https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#paths-object
-type Paths struct {
-	Extensions map[string]any `json:"-" yaml:"-"`
-
-	m map[string]*PathItem
-}
-
-// NewPaths builds a paths object with path items in insertion order.
-func NewPaths(opts ...NewPathsOption) *Paths {
-	paths := NewPathsWithCapacity(len(opts))
-	for _, opt := range opts {
-		opt(paths)
-	}
-	return paths
-}
-
-// NewPathsOption describes options to NewPaths func
-type NewPathsOption func(*Paths)
-
-// WithPath adds a named path item
-func WithPath(path string, pathItem *PathItem) NewPathsOption {
-	return func(paths *Paths) {
-		if p := pathItem; p != nil && path != "" {
-			paths.Set(path, p)
-		}
-	}
-}
+type Paths map[string]*PathItem
 
 // Validate returns an error if Paths does not comply with the OpenAPI spec.
-func (paths *Paths) Validate(ctx context.Context, opts ...ValidationOption) error {
-	ctx = WithValidationOptions(ctx, opts...)
+func (paths Paths) Validate(ctx context.Context) error {
+	normalizedPaths := make(map[string]string, len(paths))
 
-	normalizedPaths := make(map[string]string, paths.Len())
-
-	keys := make([]string, 0, paths.Len())
-	for key := range paths.Map() {
+	keys := make([]string, 0, len(paths))
+	for key := range paths {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	for _, path := range keys {
-		pathItem := paths.Value(path)
+		pathItem := paths[path]
 		if path == "" || path[0] != '/' {
 			return fmt.Errorf("path %q does not start with a forward slash (/)", path)
 		}
 
 		if pathItem == nil {
-			pathItem = &PathItem{}
-			paths.Set(path, pathItem)
+			paths[path] = &PathItem{}
+			pathItem = paths[path]
 		}
 
 		normalizedPath, _, varsInPath := normalizeTemplatedPath(path)
@@ -131,38 +104,7 @@ func (paths *Paths) Validate(ctx context.Context, opts ...ValidationOption) erro
 		return err
 	}
 
-	return validateExtensions(ctx, paths.Extensions)
-}
-
-// InMatchingOrder returns paths in the order they are matched against URLs.
-// See https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#paths-object
-// When matching URLs, concrete (non-templated) paths would be matched
-// before their templated counterparts.
-func (paths *Paths) InMatchingOrder() []string {
-	// NOTE: sorting by number of variables ASC then by descending lexicographical
-	// order seems to be a good heuristic.
-	if paths.Len() == 0 {
-		return nil
-	}
-
-	vars := make(map[int][]string)
-	max := 0
-	for path := range paths.Map() {
-		count := strings.Count(path, "}")
-		vars[count] = append(vars[count], path)
-		if count > max {
-			max = count
-		}
-	}
-
-	ordered := make([]string, 0, paths.Len())
-	for c := 0; c <= max; c++ {
-		if ps, ok := vars[c]; ok {
-			sort.Sort(sort.Reverse(sort.StringSlice(ps)))
-			ordered = append(ordered, ps...)
-		}
-	}
-	return ordered
+	return nil
 }
 
 // Find returns a path that matches the key.
@@ -177,15 +119,15 @@ func (paths *Paths) InMatchingOrder() []string {
 //	pathItem := path.Find("/person/{name}")
 //
 // would return the correct path item.
-func (paths *Paths) Find(key string) *PathItem {
+func (paths Paths) Find(key string) *PathItem {
 	// Try directly access the map
-	pathItem := paths.Value(key)
+	pathItem := paths[key]
 	if pathItem != nil {
 		return pathItem
 	}
 
 	normalizedPath, expected, _ := normalizeTemplatedPath(key)
-	for path, pathItem := range paths.Map() {
+	for path, pathItem := range paths {
 		pathNormalized, got, _ := normalizeTemplatedPath(path)
 		if got == expected && pathNormalized == normalizedPath {
 			return pathItem
@@ -194,9 +136,9 @@ func (paths *Paths) Find(key string) *PathItem {
 	return nil
 }
 
-func (paths *Paths) validateUniqueOperationIDs() error {
+func (paths Paths) validateUniqueOperationIDs() error {
 	operationIDs := make(map[string]string)
-	for urlPath, pathItem := range paths.Map() {
+	for urlPath, pathItem := range paths {
 		if pathItem == nil {
 			continue
 		}

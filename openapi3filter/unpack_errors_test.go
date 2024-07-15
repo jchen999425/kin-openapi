@@ -7,19 +7,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/jchen999425/kin-openapi/openapi3"
+	"github.com/jchen999425/kin-openapi/openapi3filter"
+	"github.com/jchen999425/kin-openapi/routers/gorillamux"
 )
 
 func Example() {
-	loader := openapi3.NewLoader()
-	doc, err := loader.LoadFromFile("./testdata/petstore.yaml")
+	doc, err := openapi3.NewLoader().LoadFromFile("./testdata/petstore.yaml")
 	if err != nil {
-		panic(err)
-	}
-
-	if err = doc.Validate(loader.Context); err != nil {
 		panic(err)
 	}
 
@@ -86,7 +81,7 @@ func Example() {
 	// Output:
 	// ===== Start New Error =====
 	// @body.name:
-	// 	Error at "/name": value must be a string
+	// 	Error at "/name": field must be set to string or not be present
 	// Schema:
 	//   {
 	//     "example": "doggie",
@@ -94,11 +89,11 @@ func Example() {
 	//   }
 	//
 	// Value:
-	//   100
+	//   "number, integer"
 	//
 	// ===== Start New Error =====
 	// @body.status:
-	// 	Error at "/status": value is not one of the allowed values ["available","pending","sold"]
+	// 	Error at "/status": value "invalidStatus" is not one of the allowed values
 	// Schema:
 	//   {
 	//     "description": "pet status in the store",
