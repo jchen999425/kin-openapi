@@ -72,7 +72,7 @@ paths:
 			name:   "failed allof object array",
 			spec:   allOfArraySpec,
 			req:    `/items?test=1.2,3.1`,
-			errStr: `parameter "test" in query has an error: Error at "/0": value "1.2" must be an integer`,
+			errStr: `parameter "test" in query has an error: path 0: value 1.2: an invalid integer: invalid syntax`,
 		},
 		{
 			name: "success oneof object array",
@@ -80,7 +80,7 @@ paths:
 			req:  `/items?test=true,3`,
 		},
 		{
-			name:   "faled oneof object array",
+			name:   "failed oneof object array",
 			spec:   oneOfArraySpec,
 			req:    `/items?test="val1","val2"`,
 			errStr: `parameter "test" in query has an error: item 0: decoding oneOf failed: 0 schemas matched`,
@@ -115,7 +115,7 @@ paths:
 			if testcase.errStr == "" {
 				require.NoError(t, err)
 			} else {
-				require.Contains(t, err.Error(), testcase.errStr)
+				require.ErrorContains(t, err, testcase.errStr)
 			}
 		},
 		)

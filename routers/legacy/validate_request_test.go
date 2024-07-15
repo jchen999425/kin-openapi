@@ -78,7 +78,7 @@ func Example() {
 		panic(err)
 	}
 
-	p, err := json.Marshal(map[string]interface{}{
+	p, err := json.Marshal(map[string]any{
 		"pet_type": "Cat",
 		"breed":    "Dingo",
 		"bark":     true,
@@ -107,6 +107,6 @@ func Example() {
 		fmt.Println(err)
 	}
 	// Output:
-	// request body has an error: doesn't match the schema: input matches more than one oneOf schemas
+	// request body has an error: doesn't match schema: input matches more than one oneOf schemas
 
 }

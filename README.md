@@ -17,10 +17,17 @@ The project has received pull requests [from many people](https://github.com/get
 Be sure to [give back to this project](https://github.com/sponsors/fenollp) like our sponsors:
 
 <p align="center">
-	<a href="//www.speakeasyapi.dev"><img src=".github/sponsors/speakeasy.png" alt="Speakeasy" height="100px"/></a>
+	<a href="https://speakeasyapi.dev/?utm_source=kinopenapi+repo&utm_medium=github+sponsorship">
+		<picture>
+		  <source media="(prefers-color-scheme: light)" srcset=".github/sponsors/speakeasy-github-sponsor-light.svg">
+		  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/speakeasy-github-sponsor-dark.svg">
+		  <img alt="Speakeasy logo" src=".github/sponsors/speakeasy-github-sponsor-dark.svg" height="100px">
+		</picture>
+	</a>
 </p>
 
 Here's some projects that depend on _kin-openapi_:
+  * [github.com/a-h/rest](https://github.com/a-h/rest) - "Generate OpenAPI 3.0 specifications from Go code without annotations or magic comments"
   * [github.com/Tufin/oasdiff](https://github.com/Tufin/oasdiff) - "A diff tool for OpenAPI Specification 3"
   * [github.com/danielgtaylor/apisprout](https://github.com/danielgtaylor/apisprout) - "Lightweight, blazing fast, cross-platform OpenAPI 3 mock server with validation"
   * [github.com/deepmap/oapi-codegen](https://github.com/deepmap/oapi-codegen) - "Generate Go client and server boilerplate from OpenAPI 3 specifications"
@@ -30,6 +37,7 @@ Here's some projects that depend on _kin-openapi_:
   * [github.com/hashicorp/nomad-openapi](https://github.com/hashicorp/nomad-openapi) - "Nomad is an easy-to-use, flexible, and performant workload orchestrator that can deploy a mix of microservice, batch, containerized, and non-containerized applications. Nomad is easy to operate and scale and has native Consul and Vault integrations."
   * [gitlab.com/jamietanna/httptest-openapi](https://gitlab.com/jamietanna/httptest-openapi) ([*blog post*](https://www.jvt.me/posts/2022/05/22/go-openapi-contract-test/)) - "Go OpenAPI Contract Verification for use with `net/http`"
   * [github.com/SIMITGROUP/openapigenerator](https://github.com/SIMITGROUP/openapigenerator) - "Openapi v3 microservices generator"
+  * [https://github.com/projectsveltos/addon-controller](https://github.com/projectsveltos/addon-controller) - "Kubernetes add-on controller designed to manage tens of clusters."
   * (Feel free to add your project by [creating an issue](https://github.com/getkin/kin-openapi/issues/new) or a pull request)
 
 ## Alternatives
@@ -55,17 +63,23 @@ Be sure to check [OpenAPI Initiative](https://github.com/OAI)'s [great tooling l
     * Generates `*openapi3.Schema` values for Go types.
 
 # Some recipes
+## Validating an OpenAPI document
+```shell
+go run github.com/getkin/kin-openapi/cmd/validate@latest [--circular] [--defaults] [--examples] [--ext] [--patterns] -- <local YAML or JSON file>
+```
+
 ## Loading OpenAPI document
 Use `openapi3.Loader`, which resolves all references:
 ```go
-doc, err := openapi3.NewLoader().LoadFromFile("swagger.json")
+loader := openapi3.NewLoader()
+doc, err := loader.LoadFromFile("my-openapi-spec.json")
 ```
 
 ## Getting OpenAPI operation that matches request
 ```go
 loader := openapi3.NewLoader()
 doc, _ := loader.LoadFromData([]byte(`...`))
-_ := doc.Validate(loader.Context)
+_ = doc.Validate(loader.Context)
 router, _ := gorillamux.NewRouter(doc)
 route, pathParams, _ := router.FindRoute(httpRequest)
 // Do something with route.Operation
@@ -90,7 +104,7 @@ func main() {
 	loader := &openapi3.Loader{Context: ctx, IsExternalRefsAllowed: true}
 	doc, _ := loader.LoadFromFile(".../My-OpenAPIv3-API.yml")
 	// Validate document
-	_ := doc.Validate(ctx)
+	_ = doc.Validate(ctx)
 	router, _ := gorillamux.NewRouter(doc)
 	httpReq, _ := http.NewRequest(http.MethodGet, "/items", nil)
 
@@ -103,7 +117,7 @@ func main() {
 		PathParams: pathParams,
 		Route:      route,
 	}
-	_ := openapi3filter.ValidateRequest(ctx, requestValidationInput)
+	_ = openapi3filter.ValidateRequest(ctx, requestValidationInput)
 
 	// Handle that request
 	// --> YOUR CODE GOES HERE <--
@@ -118,14 +132,14 @@ func main() {
 		Header:                 responseHeaders,
 	}
 	responseValidationInput.SetBodyBytes(responseBody)
-	_ := openapi3filter.ValidateResponse(ctx, responseValidationInput)
+	_ = openapi3filter.ValidateResponse(ctx, responseValidationInput)
 }
 ```
 
 ## Custom content type for body of HTTP request/response
 
-By default, the library parses a body of HTTP request and response
-if it has one of the next content types: `"text/plain"` or `"application/json"`.
+By default, the library parses a body of the HTTP request and response
+if it has one of the following content types: `"text/plain"` or `"application/json"`.
 To support other content types you must register decoders for them:
 
 ```go
@@ -153,17 +167,17 @@ func main() {
 	}
 }
 
-func xmlBodyDecoder(body io.Reader, h http.Header, schema *openapi3.SchemaRef, encFn openapi3filter.EncodingFn) (decoded interface{}, err error) {
-	// Decode body to a primitive, []inteface{}, or map[string]interface{}.
+func xmlBodyDecoder(body io.Reader, h http.Header, schema *openapi3.SchemaRef, encFn openapi3filter.EncodingFn) (decoded any, err error) {
+	// Decode body to a primitive, []any, or map[string]any.
 }
 ```
 
 ## Custom function to check uniqueness of array items
 
-By defaut, the library check unique items by below predefined function
+By default, the library checks unique items using the following predefined function:
 
 ```go
-func isSliceOfUniqueItems(xs []interface{}) bool {
+func isSliceOfUniqueItems(xs []any) bool {
 	s := len(xs)
 	m := make(map[string]struct{}, s)
 	for _, x := range xs {
@@ -174,8 +188,8 @@ func isSliceOfUniqueItems(xs []interface{}) bool {
 }
 ```
 
-In the predefined function using `json.Marshal` to generate a string can
-be used as a map key which is to support check the uniqueness of an array
+In the predefined function `json.Marshal` is used to generate a string that can
+be used as a map key which is to check the uniqueness of an array
 when the array items are objects or arrays. You can register
 you own function according to your input data to get better performance:
 
@@ -189,12 +203,146 @@ func main() {
 	// ... other validate codes
 }
 
-func arrayUniqueItemsChecker(items []interface{}) bool {
+func arrayUniqueItemsChecker(items []any) bool {
 	// Check the uniqueness of the input slice
 }
 ```
 
-## Sub-v0 breaking API changes
+## Custom function to change schema error messages
+
+By default, the error message returned when validating a value includes the error reason, the schema, and the input value.
+
+For example, given the following schema:
+
+```json
+{
+  "type": "string",
+  "allOf": [
+    { "pattern": "[A-Z]" },
+    { "pattern": "[a-z]" },
+    { "pattern": "[0-9]" },
+    { "pattern": "[!@#$%^&*()_+=-?~]" }
+  ]
+}
+```
+
+Passing the input value `"secret"` to this schema will produce the following error message:
+
+```
+string doesn't match the regular expression "[A-Z]"
+Schema:
+  {
+    "pattern": "[A-Z]"
+  }
+
+Value:
+  "secret"
+```
+
+Including the original value in the error message can be helpful for debugging, but it may not be appropriate for sensitive information such as secrets.
+
+To disable the extra details in the schema error message, you can set the `openapi3.SchemaErrorDetailsDisabled` option to `true`:
+
+```go
+func main() {
+	// ...
+
+	// Disable schema error detailed error messages
+	openapi3.SchemaErrorDetailsDisabled = true
+
+	// ... other validate codes
+}
+```
+
+This will shorten the error message to present only the reason:
+
+```
+string doesn't match the regular expression "[A-Z]"
+```
+
+For more fine-grained control over the error message, you can pass a custom `openapi3filter.Options` object to `openapi3filter.RequestValidationInput` that includes a `openapi3filter.CustomSchemaErrorFunc`.
+
+```go
+func validationOptions() *openapi3filter.Options {
+	options := &openapi3filter.Options{}
+	options.WithCustomSchemaErrorFunc(safeErrorMessage)
+	return options
+}
+
+func safeErrorMessage(err *openapi3.SchemaError) string {
+	return err.Reason
+}
+```
+
+This will change the schema validation errors to return only the `Reason` field, which is guaranteed to not include the original value.
+
+## Reconciling component $ref types
+
+`ReferencesComponentInRootDocument` is a useful helper function to check if a component reference
+coincides with a reference in the root document's component objects fixed fields.
+
+This can be used to determine if two schema definitions are of the same structure, helpful for
+code generation tools when generating go type models.
+
+```go
+doc, err = loader.LoadFromFile("openapi.yml")
+
+for _, path := range doc.Paths.InMatchingOrder() {
+	pathItem := doc.Paths.Find(path)
+
+	if pathItem.Get == nil || pathItem.Get.Responses.Status(200) {
+		continue
+	}
+
+	for _, s := range pathItem.Get.Responses.Status(200).Value.Content {
+		name, match := ReferencesComponentInRootDocument(doc, s.Schema)
+		fmt.Println(path, match, name) // /record true #/components/schemas/BookRecord
+	}
+}
+```
+
+## CHANGELOG: Sub-v1 breaking API changes
+
+### v0.126.0
+* `openapi3.CircularReferenceError` and `openapi3.CircularReferenceCounter` are removed. `openapi3.Loader` now implements reference backtracking, so any kind of circular references should be properly resolved.
+* `InternalizeRefs` now takes a refNameResolver that has access to `openapi3.T` and more properties of the reference needing resolving.
+* The `DefaultRefNameResolver` has been updated, choosing names that will be less likely to collide with each other. Because of this internalized specs will likely change slightly.
+* `openapi3.Format` and `openapi3.FormatCallback` are removed and the type of `openapi3.SchemaStringFormats` has changed.
+
+### v0.125.0
+* The `openapi3filter.ErrFunc` and `openapi3filter.LogFunc` func types now take the validated request's context as first argument.
+
+### v0.124.0
+* `openapi3.Schema.Type` & `openapi2.Parameter.Type` fields went from a `string` to the type `*Type` with methods: `Includes`, `Is`, `Permits` & `Slice`.
+
+### v0.122.0
+* `Paths` field of `openapi3.T` is now a pointer
+* `Responses` field of `openapi3.Operation` is now a pointer
+* `openapi3.Paths` went from `map[string]*PathItem` to a struct with an `Extensions` field and methods: `Set`, `Value`, `Len`, `Map`, and `New*`.
+* `openapi3.Callback` went from `map[string]*PathItem` to a struct with an `Extensions` field and methods: `Set`, `Value`, `Len`, `Map`, and `New*`.
+* `openapi3.Responses` went from `map[string]*ResponseRef` to a struct with an `Extensions` field and methods: `Set`, `Value`, `Len`, `Map`, and `New*`.
+* `(openapi3.Responses).Get(int)` renamed to `(*openapi3.Responses).Status(int)`
+
+### v0.121.0
+* Introduce `openapi3.RequestBodies` (an alias on `map[string]*openapi3.ResponseRef`) and use it in place of `openapi3.Responses` for field `openapi3.Components.Responses`.
+
+### v0.116.0
+* Dropped `openapi3filter.DefaultOptions`. Use `&openapi3filter.Options{}` directly instead.
+
+### v0.113.0
+* The string format `email` has been removed by default. To use it please call `openapi3.DefineStringFormat("email", openapi3.FormatOfStringForEmail)`.
+* Field `openapi3.T.Components` is now a pointer.
+* Fields `openapi3.Schema.AdditionalProperties` and `openapi3.Schema.AdditionalPropertiesAllowed` are replaced by `openapi3.Schema.AdditionalProperties.Schema` and `openapi3.Schema.AdditionalProperties.Has` respectively.
+* Type `openapi3.ExtensionProps` is now just `map[string]any` and extensions are accessible through the `Extensions` field.
+
+### v0.112.0
+* `(openapi3.ValidationOptions).ExamplesValidationDisabled` has been unexported.
+* `(openapi3.ValidationOptions).SchemaFormatValidationEnabled` has been unexported.
+* `(openapi3.ValidationOptions).SchemaPatternValidationDisabled` has been unexported.
+
+### v0.111.0
+* Changed `func (*_) Validate(ctx context.Context) error` to `func (*_) Validate(ctx context.Context, opts ...ValidationOption) error`.
+* `openapi3.WithValidationOptions(ctx context.Context, opts *ValidationOptions) context.Context` prototype changed to `openapi3.WithValidationOptions(ctx context.Context, opts ...ValidationOption) context.Context`.
 
 ### v0.101.0
 * `openapi3.SchemaFormatValidationDisabled` has been removed in favour of an option `openapi3.EnableSchemaFormatValidation()` passed to `openapi3.T.Validate`. The default behaviour is also now to not validate formats, as the OpenAPI spec mentions the `format` is an open value.

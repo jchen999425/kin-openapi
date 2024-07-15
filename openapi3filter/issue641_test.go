@@ -57,7 +57,7 @@ paths:
 			name:   "failed anyof pattern",
 			spec:   anyOfSpec,
 			req:    "/items?test=999999",
-			errStr: `parameter "test" in query has an error: Doesn't match schema "anyOf"`,
+			errStr: `parameter "test" in query has an error: doesn't match any schema from "anyOf"`,
 		},
 
 		{
@@ -69,7 +69,7 @@ paths:
 			name:   "failed allof pattern",
 			spec:   allOfSpec,
 			req:    `/items?test=999999`,
-			errStr: `parameter "test" in query has an error: string "999999" doesn't match the regular expression "^[0-9]{1,4}$"`,
+			errStr: `parameter "test" in query has an error: string doesn't match the regular expression "^[0-9]{1,4}$"`,
 		},
 	}
 
@@ -101,7 +101,7 @@ paths:
 			if testcase.errStr == "" {
 				require.NoError(t, err)
 			} else {
-				require.Contains(t, err.Error(), testcase.errStr)
+				require.ErrorContains(t, err, testcase.errStr)
 			}
 		},
 		)

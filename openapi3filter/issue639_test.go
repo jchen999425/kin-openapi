@@ -2,7 +2,7 @@ package openapi3filter
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -37,7 +37,7 @@ func TestIssue639(t *testing.T) {
               type: object
         responses:
           '200':
-           description: Successful respons
+           description: Successful response
 `[1:]
 
 	doc, err := loader.LoadFromData([]byte(spec))
@@ -52,7 +52,7 @@ func TestIssue639(t *testing.T) {
 	tests := []struct {
 		name               string
 		options            *Options
-		expectedDefaultVal interface{}
+		expectedDefaultVal any
 	}{
 		{
 			name: "no defaults are added to requests",
@@ -87,10 +87,10 @@ func TestIssue639(t *testing.T) {
 			}
 			err = ValidateRequest(ctx, requestValidationInput)
 			require.NoError(t, err)
-			bodyAfterValidation, err := ioutil.ReadAll(httpReq.Body)
+			bodyAfterValidation, err := io.ReadAll(httpReq.Body)
 			require.NoError(t, err)
 
-			raw := map[string]interface{}{}
+			raw := map[string]any{}
 			err = json.Unmarshal(bodyAfterValidation, &raw)
 			require.NoError(t, err)
 			require.Equal(t, testcase.expectedDefaultVal,

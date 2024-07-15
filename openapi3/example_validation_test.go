@@ -221,10 +221,7 @@ func TestExamplesSchemaValidation(t *testing.T) {
 			t.Parallel()
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
-					loader := NewLoader()
-
-					spec := bytes.Buffer{}
-					spec.WriteString(`
+					spec := bytes.NewBufferString(`
 openapi: 3.0.3
 info:
   title: An API
@@ -243,6 +240,7 @@ paths:
 					spec.WriteString(tc.parametersExample)
 					spec.WriteString(`
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -251,7 +249,6 @@ paths:
 					spec.WriteString(tc.mediaTypeRequestExample)
 					spec.WriteString(`
         description: Created user object
-        required: true
       responses:
         '204':
           description: "success"
@@ -264,11 +261,12 @@ paths:
   /readWriteOnly:
     post:
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/ReadWriteOnlyData"
-            required: true`)
+`)
 					spec.WriteString(tc.readWriteOnlyMediaTypeRequestExample)
 					spec.WriteString(`
       responses:
@@ -339,18 +337,19 @@ components:
 `)
 					spec.WriteString(tc.componentExamples)
 
+					loader := NewLoader()
 					doc, err := loader.LoadFromData(spec.Bytes())
 					require.NoError(t, err)
 
 					if testOption.disableExamplesValidation {
 						err = doc.Validate(loader.Context, DisableExamplesValidation())
 					} else {
-						err = doc.Validate(loader.Context)
+						err = doc.Validate(loader.Context, EnableExamplesValidation())
 					}
 
 					if tc.errContains != "" && !testOption.disableExamplesValidation {
 						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.errContains)
+						require.ErrorContains(t, err, tc.errContains)
 					} else {
 						require.NoError(t, err)
 					}
@@ -436,10 +435,7 @@ func TestExampleObjectValidation(t *testing.T) {
 			t.Parallel()
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
-					loader := NewLoader()
-
-					spec := bytes.Buffer{}
-					spec.WriteString(`
+					spec := bytes.NewBufferString(`
 openapi: 3.0.3
 info:
   title: An API
@@ -506,6 +502,7 @@ components:
 `)
 					spec.WriteString(tc.componentExamples)
 
+					loader := NewLoader()
 					doc, err := loader.LoadFromData(spec.Bytes())
 					require.NoError(t, err)
 
@@ -517,7 +514,7 @@ components:
 
 					if tc.errContains != "" {
 						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.errContains)
+						require.ErrorContains(t, err, tc.errContains)
 					} else {
 						require.NoError(t, err)
 					}

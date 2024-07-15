@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
-	"github.com/getkin/kin-openapi/jsoninfo"
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
@@ -36,16 +36,37 @@ type Option func(*generatorOpt)
 // the final output
 type SchemaCustomizerFn func(name string, t reflect.Type, tag reflect.StructTag, schema *openapi3.Schema) error
 
+// SetSchemar allows client to set their own schema definition according to
+// their specification. Useful when some custom datatype is needed and/or some custom logic
+// is needed on how the schema values would be generated
+type SetSchemar interface {
+	SetSchema(*openapi3.Schema)
+}
+
+type ExportComponentSchemasOptions struct {
+	ExportComponentSchemas bool
+	ExportTopLevelSchema   bool
+	ExportGenerics         bool
+}
+
+type TypeNameGenerator func(t reflect.Type) string
+
 type generatorOpt struct {
-	useAllExportedFields bool
-	throwErrorOnCycle    bool
-	schemaCustomizer     SchemaCustomizerFn
+	useAllExportedFields   bool
+	throwErrorOnCycle      bool
+	schemaCustomizer       SchemaCustomizerFn
+	exportComponentSchemas ExportComponentSchemasOptions
+	typeNameGenerator      TypeNameGenerator
 }
 
 // UseAllExportedFields changes the default behavior of only
 // generating schemas for struct fields with a JSON tag.
 func UseAllExportedFields() Option {
 	return func(x *generatorOpt) { x.useAllExportedFields = true }
+}
+
+func CreateTypeNameGenerator(tngnrt TypeNameGenerator) Option {
+	return func(x *generatorOpt) { x.typeNameGenerator = tngnrt }
 }
 
 // ThrowErrorOnCycle changes the default behavior of creating cycle
@@ -60,8 +81,15 @@ func SchemaCustomizer(sc SchemaCustomizerFn) Option {
 	return func(x *generatorOpt) { x.schemaCustomizer = sc }
 }
 
+// CreateComponents changes the default behavior
+// to add all schemas as components
+// Reduces duplicate schemas in routes
+func CreateComponentSchemas(exso ExportComponentSchemasOptions) Option {
+	return func(x *generatorOpt) { x.exportComponentSchemas = exso }
+}
+
 // NewSchemaRefForValue is a shortcut for NewGenerator(...).NewSchemaRefForValue(...)
-func NewSchemaRefForValue(value interface{}, schemas openapi3.Schemas, opts ...Option) (*openapi3.SchemaRef, error) {
+func NewSchemaRefForValue(value any, schemas openapi3.Schemas, opts ...Option) (*openapi3.SchemaRef, error) {
 	g := NewGenerator(opts...)
 	return g.NewSchemaRefForValue(value, schemas)
 }
@@ -77,6 +105,7 @@ type Generator struct {
 	SchemaRefs map[*openapi3.SchemaRef]int
 
 	// componentSchemaRefs is a set of schemas that must be defined in the components to avoid cycles
+	// or if we have specified create components schemas
 	componentSchemaRefs map[string]struct{}
 }
 
@@ -99,15 +128,22 @@ func (g *Generator) GenerateSchemaRef(t reflect.Type) (*openapi3.SchemaRef, erro
 }
 
 // NewSchemaRefForValue uses reflection on the given value to produce a SchemaRef, and updates a supplied map with any dependent component schemas if they lead to cycles
-func (g *Generator) NewSchemaRefForValue(value interface{}, schemas openapi3.Schemas) (*openapi3.SchemaRef, error) {
+func (g *Generator) NewSchemaRefForValue(value any, schemas openapi3.Schemas) (*openapi3.SchemaRef, error) {
 	ref, err := g.GenerateSchemaRef(reflect.TypeOf(value))
 	if err != nil {
 		return nil, err
 	}
 	for ref := range g.SchemaRefs {
-		if _, ok := g.componentSchemaRefs[ref.Ref]; ok && schemas != nil {
-			schemas[ref.Ref] = &openapi3.SchemaRef{
-				Value: ref.Value,
+		refName := ref.Ref
+		if g.opts.exportComponentSchemas.ExportComponentSchemas && strings.HasPrefix(refName, "#/components/schemas/") {
+			refName = strings.TrimPrefix(refName, "#/components/schemas/")
+		}
+
+		if _, ok := g.componentSchemaRefs[refName]; ok && schemas != nil {
+			if ref.Value != nil && ref.Value.Properties != nil {
+				schemas[refName] = &openapi3.SchemaRef{
+					Value: ref.Value,
+				}
 			}
 		}
 		if strings.HasPrefix(ref.Ref, "#/components/schemas/") {
@@ -119,7 +155,7 @@ func (g *Generator) NewSchemaRefForValue(value interface{}, schemas openapi3.Sch
 	return ref, nil
 }
 
-func (g *Generator) generateSchemaRefFor(parents []*jsoninfo.TypeInfo, t reflect.Type, name string, tag reflect.StructTag) (*openapi3.SchemaRef, error) {
+func (g *Generator) generateSchemaRefFor(parents []*theTypeInfo, t reflect.Type, name string, tag reflect.StructTag) (*openapi3.SchemaRef, error) {
 	if ref := g.Types[t]; ref != nil && g.opts.schemaCustomizer == nil {
 		g.SchemaRefs[ref]++
 		return ref, nil
@@ -139,7 +175,7 @@ func (g *Generator) generateSchemaRefFor(parents []*jsoninfo.TypeInfo, t reflect
 	return ref, nil
 }
 
-func getStructField(t reflect.Type, fieldInfo jsoninfo.FieldInfo) reflect.StructField {
+func getStructField(t reflect.Type, fieldInfo theFieldInfo) reflect.StructField {
 	var ff reflect.StructField
 	// fieldInfo.Index is an array of indexes starting from the root of the type
 	for i := 0; i < len(fieldInfo.Index); i++ {
@@ -152,8 +188,8 @@ func getStructField(t reflect.Type, fieldInfo jsoninfo.FieldInfo) reflect.Struct
 	return ff
 }
 
-func (g *Generator) generateWithoutSaving(parents []*jsoninfo.TypeInfo, t reflect.Type, name string, tag reflect.StructTag) (*openapi3.SchemaRef, error) {
-	typeInfo := jsoninfo.GetTypeInfo(t)
+func (g *Generator) generateWithoutSaving(parents []*theTypeInfo, t reflect.Type, name string, tag reflect.StructTag) (*openapi3.SchemaRef, error) {
+	typeInfo := getTypeInfo(t)
 	for _, parent := range parents {
 		if parent == typeInfo {
 			return nil, &CycleError{}
@@ -161,7 +197,7 @@ func (g *Generator) generateWithoutSaving(parents []*jsoninfo.TypeInfo, t reflec
 	}
 
 	if cap(parents) == 0 {
-		parents = make([]*jsoninfo.TypeInfo, 0, 4)
+		parents = make([]*theTypeInfo, 0, 4)
 	}
 	parents = append(parents, typeInfo)
 
@@ -201,63 +237,63 @@ func (g *Generator) generateWithoutSaving(parents []*jsoninfo.TypeInfo, t reflec
 		return nil, nil // ignore
 
 	case reflect.Bool:
-		schema.Type = "boolean"
+		schema.Type = &openapi3.Types{"boolean"}
 
 	case reflect.Int:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 	case reflect.Int8:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Min = &minInt8
 		schema.Max = &maxInt8
 	case reflect.Int16:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Min = &minInt16
 		schema.Max = &maxInt16
 	case reflect.Int32:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Format = "int32"
 	case reflect.Int64:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Format = "int64"
 	case reflect.Uint:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Min = &zeroInt
 	case reflect.Uint8:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Min = &zeroInt
 		schema.Max = &maxUint8
 	case reflect.Uint16:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Min = &zeroInt
 		schema.Max = &maxUint16
 	case reflect.Uint32:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Min = &zeroInt
 		schema.Max = &maxUint32
 	case reflect.Uint64:
-		schema.Type = "integer"
+		schema.Type = &openapi3.Types{"integer"}
 		schema.Min = &zeroInt
 		schema.Max = &maxUint64
 
 	case reflect.Float32:
-		schema.Type = "number"
+		schema.Type = &openapi3.Types{"number"}
 		schema.Format = "float"
 	case reflect.Float64:
-		schema.Type = "number"
+		schema.Type = &openapi3.Types{"number"}
 		schema.Format = "double"
 
 	case reflect.String:
-		schema.Type = "string"
+		schema.Type = &openapi3.Types{"string"}
 
 	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
 			if t == rawMessageType {
 				return &openapi3.SchemaRef{Value: schema}, nil
 			}
-			schema.Type = "string"
+			schema.Type = &openapi3.Types{"string"}
 			schema.Format = "byte"
 		} else {
-			schema.Type = "array"
+			schema.Type = &openapi3.Types{"array"}
 			items, err := g.generateSchemaRefFor(parents, t.Elem(), name, tag)
 			if err != nil {
 				if _, ok := err.(*CycleError); ok && !g.opts.throwErrorOnCycle {
@@ -273,7 +309,7 @@ func (g *Generator) generateWithoutSaving(parents []*jsoninfo.TypeInfo, t reflec
 		}
 
 	case reflect.Map:
-		schema.Type = "object"
+		schema.Type = &openapi3.Types{"object"}
 		additionalProperties, err := g.generateSchemaRefFor(parents, t.Elem(), name, tag)
 		if err != nil {
 			if _, ok := err.(*CycleError); ok && !g.opts.throwErrorOnCycle {
@@ -284,14 +320,22 @@ func (g *Generator) generateWithoutSaving(parents []*jsoninfo.TypeInfo, t reflec
 		}
 		if additionalProperties != nil {
 			g.SchemaRefs[additionalProperties]++
-			schema.AdditionalProperties = additionalProperties
+			schema.AdditionalProperties = openapi3.AdditionalProperties{Schema: additionalProperties}
 		}
 
 	case reflect.Struct:
 		if t == timeType {
-			schema.Type = "string"
+			schema.Type = &openapi3.Types{"string"}
 			schema.Format = "date-time"
 		} else {
+			typeName := g.generateTypeName(t)
+
+			if _, ok := g.componentSchemaRefs[typeName]; ok && g.opts.exportComponentSchemas.ExportComponentSchemas {
+				// Check if we have already parsed this component schema ref based on the name of the struct
+				// and use that if so
+				return openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", typeName), schema), nil
+			}
+
 			for _, fieldInfo := range typeInfo.Fields {
 				// Only fields with JSON tag are considered (by default)
 				if !fieldInfo.HasJSONTag && !g.opts.useAllExportedFields {
@@ -341,13 +385,23 @@ func (g *Generator) generateWithoutSaving(parents []*jsoninfo.TypeInfo, t reflec
 					g.SchemaRefs[ref]++
 					schema.WithPropertyRef(fieldName, ref)
 				}
+
 			}
 
 			// Object only if it has properties
 			if schema.Properties != nil {
-				schema.Type = "object"
+				schema.Type = &openapi3.Types{"object"}
 			}
 		}
+
+	default:
+		// Object has their own schema's implementation, so we'll use those
+		if v := reflect.New(t); v.CanInterface() {
+			if v, ok := v.Interface().(SetSchemar); ok {
+				v.SetSchema(schema)
+			}
+		}
+
 	}
 
 	if g.opts.schemaCustomizer != nil {
@@ -356,7 +410,38 @@ func (g *Generator) generateWithoutSaving(parents []*jsoninfo.TypeInfo, t reflec
 		}
 	}
 
+	if !g.opts.exportComponentSchemas.ExportComponentSchemas || t.Kind() != reflect.Struct {
+		return openapi3.NewSchemaRef(t.Name(), schema), nil
+	}
+
+	// Best way I could find to check that
+	// this current type is a generic
+	isGeneric, err := regexp.Match(`^.*\[.*\]$`, []byte(t.Name()))
+	if err != nil {
+		return nil, err
+	}
+
+	if isGeneric && !g.opts.exportComponentSchemas.ExportGenerics {
+		return openapi3.NewSchemaRef(t.Name(), schema), nil
+	}
+
+	// For structs we add the schemas to the component schemas
+	if len(parents) > 1 || g.opts.exportComponentSchemas.ExportTopLevelSchema {
+		typeName := g.generateTypeName(t)
+
+		g.componentSchemaRefs[typeName] = struct{}{}
+		return openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", typeName), schema), nil
+	}
+
 	return openapi3.NewSchemaRef(t.Name(), schema), nil
+}
+
+func (g *Generator) generateTypeName(t reflect.Type) string {
+	if g.opts.typeNameGenerator != nil {
+		return g.opts.typeNameGenerator(t)
+	}
+
+	return t.Name()
 }
 
 func (g *Generator) generateCycleSchemaRef(t reflect.Type, schema *openapi3.Schema) *openapi3.SchemaRef {
@@ -367,17 +452,17 @@ func (g *Generator) generateCycleSchemaRef(t reflect.Type, schema *openapi3.Sche
 	case reflect.Slice:
 		ref := g.generateCycleSchemaRef(t.Elem(), schema)
 		sliceSchema := openapi3.NewSchema()
-		sliceSchema.Type = "array"
+		sliceSchema.Type = &openapi3.Types{"array"}
 		sliceSchema.Items = ref
 		return openapi3.NewSchemaRef("", sliceSchema)
 	case reflect.Map:
 		ref := g.generateCycleSchemaRef(t.Elem(), schema)
 		mapSchema := openapi3.NewSchema()
-		mapSchema.Type = "object"
-		mapSchema.AdditionalProperties = ref
+		mapSchema.Type = &openapi3.Types{"object"}
+		mapSchema.AdditionalProperties = openapi3.AdditionalProperties{Schema: ref}
 		return openapi3.NewSchemaRef("", mapSchema)
 	default:
-		typeName = t.Name()
+		typeName = g.generateTypeName(t)
 	}
 
 	g.componentSchemaRefs[typeName] = struct{}{}

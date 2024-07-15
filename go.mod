@@ -1,6 +1,6 @@
 module github.com/jchen999425/kin-openapi
 
-go 1.16
+go 1.20
 
 require (
 	github.com/getkin/kin-openapi v0.110.0

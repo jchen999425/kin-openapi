@@ -13,8 +13,13 @@ import (
 )
 
 func Example() {
-	doc, err := openapi3.NewLoader().LoadFromFile("./testdata/petstore.yaml")
+	loader := openapi3.NewLoader()
+	doc, err := loader.LoadFromFile("./testdata/petstore.yaml")
 	if err != nil {
+		panic(err)
+	}
+
+	if err = doc.Validate(loader.Context); err != nil {
 		panic(err)
 	}
 
@@ -81,7 +86,7 @@ func Example() {
 	// Output:
 	// ===== Start New Error =====
 	// @body.name:
-	// 	Error at "/name": field must be set to string or not be present
+	// 	Error at "/name": value must be a string
 	// Schema:
 	//   {
 	//     "example": "doggie",
@@ -89,11 +94,11 @@ func Example() {
 	//   }
 	//
 	// Value:
-	//   "number, integer"
+	//   100
 	//
 	// ===== Start New Error =====
 	// @body.status:
-	// 	Error at "/status": value "invalidStatus" is not one of the allowed values
+	// 	Error at "/status": value is not one of the allowed values ["available","pending","sold"]
 	// Schema:
 	//   {
 	//     "description": "pet status in the store",
